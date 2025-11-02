@@ -63,6 +63,7 @@ model User {
     memberships   Membership[]
     invitations   Invitation[] @relation("UserInvitations")
     organizations Organization[]
+    policies      Policy[]
 }
 
 model Organization {
@@ -77,6 +78,7 @@ model Organization {
     memberships Membership[]
     invitations Invitation[]
     categories  Category[]
+    policies    Policy[]
 
     @@index([name])
     @@index([createdById])
@@ -128,8 +130,41 @@ model Category {
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
+    policies    Policy[]
+
     @@unique([orgId, name])
     @@index([orgId])
+}
+
+enum Period {
+    PER_EXPENSE
+}
+
+enum ReviewMode {
+    AUTO_APPROVE
+    MANUAL_REVIEW
+}
+
+model Policy {
+    id          String     @id @default(cuid())
+    name        String
+    description String?
+    org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+    orgId       String
+    category    Category?  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+    categoryId  String?
+    user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId      String?
+    maxAmount   Decimal    @db.Decimal(10, 2)
+    period      Period     @default(PER_EXPENSE)
+    reviewMode  ReviewMode @default(MANUAL_REVIEW)
+    createdAt   DateTime   @default(now())
+    updatedAt   DateTime   @updatedAt
+
+    @@index([orgId])
+    @@index([orgId, categoryId])
+    @@index([orgId, userId])
+    @@index([orgId, categoryId, userId])
 }
 
 model VerificationToken {
