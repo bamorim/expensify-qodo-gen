@@ -33,6 +33,36 @@ export const orgRouter = createTRPCRouter({
     }),
 
   /**
+   * Get a single organization with the current user's membership.
+   */
+  get: protectedProcedure
+    .input(z.object({ orgId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      const membership = await ctx.db.membership.findUnique({
+        where: {
+          userId_orgId: {
+            userId,
+            orgId: input.orgId,
+          },
+        },
+        include: {
+          org: true,
+        },
+      });
+
+      if (!membership) {
+        return null;
+      }
+
+      return {
+        org: membership.org,
+        role: membership.role,
+      };
+    }),
+
+  /**
    * List all organizations the current user is a member of.
    */
   list: protectedProcedure.query(async ({ ctx }) => {

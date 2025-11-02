@@ -54,6 +54,33 @@ describe("orgRouter", () => {
     });
   });
 
+  describe("get", () => {
+    it("should return org with user's membership", async () => {
+      const user = await createUser("test@example.com", "Test User");
+      const caller = createCaller(user.id, user.email!, user.name!);
+      const org = await caller.create({ name: "Test Org" });
+
+      const result = await caller.get({ orgId: org.id });
+
+      expect(result).toBeDefined();
+      expect(result?.org.id).toBe(org.id);
+      expect(result?.org.name).toBe("Test Org");
+      expect(result?.role).toBe(Role.ADMIN);
+    });
+
+    it("should return null if user is not a member", async () => {
+      const user1 = await createUser("user1@example.com", "User 1");
+      const caller1 = createCaller(user1.id, user1.email!, user1.name!);
+      const org = await caller1.create({ name: "User 1 Org" });
+
+      const user2 = await createUser("user2@example.com", "User 2");
+      const caller2 = createCaller(user2.id, user2.email!, user2.name!);
+      const result = await caller2.get({ orgId: org.id });
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe("list", () => {
     it("should list organizations user is a member of", async () => {
       const user = await createUser("test@example.com", "Test User");
