@@ -59,6 +59,63 @@ model User {
     accounts      Account[]
     sessions      Session[]
     posts         Post[]
+
+    memberships   Membership[]
+    invitations   Invitation[] @relation("UserInvitations")
+    organizations Organization[]
+}
+
+model Organization {
+    id        String    @id @default(cuid())
+    name      String
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+
+    createdBy   User     @relation(fields: [createdById], references: [id])
+    createdById String
+
+    memberships Membership[]
+    invitations Invitation[]
+
+    @@index([name])
+    @@index([createdById])
+}
+
+enum Role {
+    ADMIN
+    MEMBER
+}
+
+model Membership {
+    id        String       @id @default(cuid())
+    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    String
+    org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+    orgId     String
+    role      Role         @default(MEMBER)
+    createdAt DateTime     @default(now())
+    updatedAt DateTime     @updatedAt
+
+    @@unique([userId, orgId])
+    @@index([orgId, role])
+    @@index([userId])
+}
+
+model Invitation {
+    id        String       @id @default(cuid())
+    email     String
+    org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+    orgId     String
+    invitedBy User         @relation("UserInvitations", fields: [invitedById], references: [id])
+    invitedById String
+    role      Role         @default(MEMBER)
+    token     String       @unique
+    acceptedAt DateTime?
+    createdAt  DateTime    @default(now())
+    expiresAt  DateTime
+
+    @@index([email])
+    @@unique([orgId, email])
 }
 
 model VerificationToken {
