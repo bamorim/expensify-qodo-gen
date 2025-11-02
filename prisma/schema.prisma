@@ -76,6 +76,7 @@ model Organization {
 
     memberships Membership[]
     invitations Invitation[]
+    categories  Category[]
 
     @@index([name])
     @@index([createdById])
@@ -116,6 +117,19 @@ model Invitation {
 
     @@index([email])
     @@unique([orgId, email])
+}
+
+model Category {
+    id          String   @id @default(cuid())
+    name        String
+    description String?
+    org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+    orgId       String
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@unique([orgId, name])
+    @@index([orgId])
 }
 
 model VerificationToken {

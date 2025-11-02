@@ -138,6 +138,19 @@ export default function OrgsPageClient() {
       {/* Organization Details */}
       {selectedOrgId && selectedOrgData && (
         <>
+          {/* Quick Links */}
+          <section className="mb-8 rounded-lg border p-4">
+            <h2 className="mb-4 text-xl font-semibold">Quick Links</h2>
+            <div className="flex gap-2">
+              <a
+                href={`/orgs/${selectedOrgId}/categories`}
+                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              >
+                Manage Categories
+              </a>
+            </div>
+          </section>
+
           {/* Show admin-only message if not admin */}
           {!isAdmin && (
             <section className="mb-8 rounded-lg border border-blue-200 bg-blue-50 p-4">
