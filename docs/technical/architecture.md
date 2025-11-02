@@ -1,8 +1,17 @@
 # Architecture Documentation
 
+> Status: Draft update for TASK-0001 (Foundation and Architecture). Reflects multi-tenancy boundaries, initial domain modules, and logging strategy.
+
 ## Overview
 
 This document outlines the technical architecture of the Expensify application, built using the T3 Stack with Next.js, TypeScript, Prisma, tRPC, NextAuth, and Vitest.
+
+Primary architectural goals:
+- Multi-tenant isolation by Organization across all domain entities
+- Simple, type-safe API surface via tRPC with business logic in procedures
+- Clear module boundaries for Orgs, Policies, Expenses, Reviews
+- Observability foundation with structured logging and error boundaries
+- Testability with transactional database testing and hermetic test env
 
 ## Technology Stack
 
@@ -24,6 +33,23 @@ This document outlines the technical architecture of the Expensify application, 
 - **pnpm** - Package manager
 
 ## Client-Server Architecture
+
+### Multi-Tenancy Boundaries
+
+- Tenancy Unit: Organization (org). Every org-scoped table contains orgId as part of a composite unique or foreign key.
+- Access Model: Users belong to one or more orgs via membership records. Session determines active org context.
+- Authorization: RBAC at org scope (Admin, Member). Policies are applied within org boundary.
+- Queries/Mutations: All tRPC procedures that access org data must take orgId explicitly or infer it from session context and enforce it at the Prisma query level.
+- Testing: Test database uses a clean schema with transactions; seed data should include at least two orgs to validate isolation.
+
+### High-Level Domain Modules
+
+- Organizations: org lifecycle, membership, roles, and org switching
+- Policies: policy definitions, rule engine inputs/outputs, versioning
+- Expenses: submissions, receipts, categorization, policy checks
+- Reviews: approval workflows, multi-step routing, audit trail entries
+
+Service boundary: keep business logic colocated inside tRPC routers per domain. Extract helpers when logic is reused across routers.
 
 ### tRPC Integration
 
@@ -75,6 +101,20 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
 const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
 ```
 
+## Data Model (High-Level)
+
+Key entities and selected constraints (PostgreSQL via Prisma):
+- Organization(id, name, createdAt)
+- User(id, email, createdAt)
+- Membership(id, userId -> User, orgId -> Organization, role enum[ADMIN, MEMBER], unique(userId, orgId))
+- Policy(id, orgId -> Organization, name, version, rules JSONB, isActive, unique(orgId, name, version))
+- Expense(id, orgId -> Organization, userId -> User, amount, currency, category, status enum[DRAFT,SUBMITTED,REVIEWING,APPROVED,REJECTED,PAID], submittedAt)
+- Receipt(id, expenseId -> Expense, storageRef, ocr JSONB)
+- Review(id, expenseId -> Expense, reviewerId -> User, decision enum[PENDING,APPROVED,REJECTED], decidedAt)
+- AuditLog(id, orgId, actorUserId, entityType, entityId, action, payload JSONB, createdAt, index on (orgId, createdAt))
+
+All org-scoped tables include orgId and enforce it in queries.
+
 ## Business Logic Organization
 
 ### tRPC Router Pattern
@@ -116,6 +156,13 @@ export const postRouter = createTRPCRouter({
 - Complex business logic that spans multiple routers
 - Logic that needs to be reused across different procedures
 - Heavy computational operations that benefit from separation
+
+## Error Logging and Observability Strategy
+
+- Logging: Use structured logs (JSON) on server procedures. Include fields: requestId, userId, orgId, procedure, severity, message.
+- Error Handling: Wrap tRPC procedures with errorFormatter; return safe error shapes to clients. Use Next.js error boundaries on pages.
+- Monitoring: In dev/test, log to console. In prod (future), route logs to a centralized sink (e.g., OpenTelemetry/OTLP or hosted log service).
+- Auditing: Write explicit domain events to AuditLog table for sensitive actions (policy changes, approvals, payments).
 
 ## Testing Strategy
 
